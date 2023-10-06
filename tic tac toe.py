@@ -1,13 +1,22 @@
 game_board = [[' ' for i in range(3)]for j in range(3)]
+import colorama
+from colorama import Fore, Back, Style
 
-
-def draw_board(board):  # Визуализация доски
+def draw_colored_board(board):  # Визуализация доски с цветовой палитрой
     for i in board:
-        print('|', " | ".join(i), '|')
+        row = ''
+        for cell in i:
+            if cell == 'X':
+                row += f'| {Fore.RED}{cell}{Style.RESET_ALL} '
+            elif cell == 'O':
+                row += f'| {Fore.BLUE}{cell}{Style.RESET_ALL} '
+            else:
+                row += f'| {cell} '
+        print(row + '|')
         print('-------------')
 
 
-draw_board(game_board)
+draw_colored_board(game_board)
 
 first_player = 'X'
 second_player = 'O'
@@ -88,7 +97,7 @@ def ask_and_make_move(player, board):
 
 while True:
     if ask_and_make_move(current_player, game_board):
-        draw_board(game_board)
+        draw_colored_board(game_board)
         current_player = change_player(first_player, second_player, current_player)
         if check_win(game_board, first_player, second_player):
             restart = input("Do you want to play again? (y/n) ")
@@ -97,7 +106,7 @@ while True:
             else:
                 change_to_first_player()
                 game_board = [[' ' for i in range(3)] for y in range(3)]
-                draw_board(game_board)
+                draw_colored_board(game_board)
 
         if check_tie(game_board):
             restart = input("Do you want to play again? (y/n) ")
@@ -106,4 +115,4 @@ while True:
             else:
                 change_to_first_player()
                 game_board = [[' ' for i in range(3)] for y in range(3)]
-                draw_board(game_board)
+                draw_colored_board(game_board)
