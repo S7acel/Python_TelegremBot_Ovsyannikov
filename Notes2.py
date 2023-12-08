@@ -3,7 +3,7 @@ import os
 path = f'C:/Users/user/PycharmProjects/Python_TelegremBot_Ovsyannikov/Notes/'  # директория файла пользователей
 
 
-def check_extension(f):  # Проверка на наличие '.txt' в конце
+def check_extension(f):  # Проверка на наличия '.txt' в конце
     try:
         if not f.endswith('.txt'):
             f += '.txt'
@@ -20,7 +20,7 @@ def check_directory(pth):  # проверка существования фай�
         return f'Произошла ошибка {err}'
 
 
-def build_note(note_name, note_text, chat_id):
+def build_note(note_name, note_text, chat_id):  # создание заметки
     try:
         check_directory(f'{path}/{chat_id}')
         note_name = check_extension(note_name)
