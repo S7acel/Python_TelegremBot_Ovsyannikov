@@ -1,0 +1,419 @@
+Index: Notes_in_telegramm/telegramm_notes_hand.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from telegram.ext import Updater, Filters, CommandHandler, MessageHandler, ConversationHandler\r\nfrom do_not_save_files.secrets import API_TOKEN\r\nfrom notes2 import build_note, read_note, edit_note, delete_note, display_notes, delete_all_notes, logging\r\n\r\nDELETE_ALL, DETAILS, CREATE, READ, EDIT_DETAILS, EDIT, DELETE = range(7)\r\n\r\n\r\ndef greeting(update, context):  # функция-обработчик (Запускается по команде /start)\r\n    text = 'Привет, я NoteWizard - твой личный помощник для создания заметок. Я могу помочь тебе создавать заметки и ' \\\r\n           'сохранять их в отдельных папках. Мои команды включают в себя:\\n\\n/create - ' \\\r\n           'создать новую заметку.\\n/read - прочитать существующую заметку.\\n/edit - изменить существующую ' \\\r\n           'заметку.\\n/delete - удалить существующую заметку.\\n/display - отобразить список всех ' \\\r\n           'заметок.\\n/delete_all_notes - удалить все заметки.\\n\\nЧтобы узнать больше о моих возможностях, ' \\\r\n           'используйте команду /help. Давай начнем работу!'\r\n    context.bot.send_message(chat_id=update.message.chat_id, text=text)\r\n    logging(update.message.chat_id)\r\n\r\n\r\ndef help_handler(update, context):  # функция-обработчик (Запускается по команде /help)\r\n    context.bot.send_message(chat_id=update.message.chat_id, text='Ух-ты! На этом весь мой функционал закончился! :( '\r\n                                                                  '\\n Если есть предложения, или рекомендации по '\r\n                                                                  'улучшению бота, то напишите сюда --> @Markceil\\n '\r\n                                                                  'Был бы очень благодарен \uD83E\uDD29')\r\n\r\n\r\ndef display_notes_handler(update, context):  # функция обработчик отправление названий всех файлов\r\n    notes_list = display_notes(update.message.chat_id)\r\n    if notes_list:\r\n        for i in notes_list:\r\n            context.bot.send_message(chat_id=update.message.chat_id, text=str(i))\r\n    else:\r\n        context.bot.send_message(chat_id=update.message.chat_id, text='Файлов пока что нет')\r\n\r\n\r\ndef ask_to_delete_all_notes_handler(update, context):  # Спрашивание об удалении файлов\r\n    # Изначальная проверка наличия файлов\r\n    if display_notes(update.message.chat_id):\r\n        update.message.reply_text(\r\n            f'Вы уверены? Удаляемые файлы: {\", \".join(display_notes(update.message.chat_id))} \\n Да - y/ Нет - n')\r\n        return DELETE_ALL\r\n    else:\r\n        update.message.reply_text(f'Заметок - нет \uD83D\uDC7F')\r\n        return ConversationHandler.END\r\n\r\n\r\ndef delete_all_handler(update, context):\r\n    result = delete_all_notes(update.message.chat_id, update.message.text)\r\n    update.message.reply_text(f'{result}')\r\n    return conversation_handler.END\r\n\r\n\r\ndef ask_note_name_handler(update, context):\r\n    update.message.reply_text(f'Напиши название для новой заметки')\r\n    return DETAILS\r\n\r\n\r\ndef details_note_handler(update, context):\r\n    context.user_data['note_name'] = update.message.text\r\n    update.message.reply_text(f\"Напиши содержимое заметки {context.user_data['note_name']}\")\r\n    return CREATE\r\n\r\n\r\ndef create_note_handler(update, context):\r\n    result = build_note(context.user_data['note_name'], update.message.text, str(update.message.chat_id))\r\n    update.message.reply_text(f'{result}')\r\n    return ConversationHandler.END\r\n\r\n\r\ndef read_name_handler(update, context):\r\n    update.message.reply_text(f\"Напиши название заметки\")\r\n    return READ\r\n\r\n\r\ndef read_note_handler(update, context):\r\n    result = read_note(update.message.text, update.message.chat_id)\r\n    update.message.reply_text(f\"{result}\")\r\n    return ConversationHandler.END\r\n\r\n\r\ndef ask_name_of_edit_handler(update, context):\r\n    update.message.reply_text(f\"Напиши название заметки\")\r\n    return EDIT_DETAILS\r\n\r\n\r\ndef ask_details_of_edit_handler(update, context):\r\n    context.user_data['note_name'] = update.message.text\r\n    update.message.reply_text(f\"Напиши содержимое заметки {update.message.text}\")\r\n    return EDIT\r\n\r\n\r\ndef final_edit_handler(update, context):\r\n    result = edit_note(context.user_data['note_name'], str(update.message.chat_id), update.message.text)\r\n    update.message.reply_text(f\"{result}\")\r\n    return ConversationHandler.END\r\n\r\n\r\ndef ask_delete_note(update, context):\r\n    update.message.reply_text(f'Напиши название заметки')\r\n    return DELETE\r\n\r\ndef delete_handler(update, context):\r\n    result = delete_note(update.message.text, update.message.chat_id)\r\n    update.message.reply_text(f\"{result}\")\r\n    return ConversationHandler.END\r\n\r\nconversation_handler = ConversationHandler(\r\n    entry_points=[CommandHandler('start', greeting),\r\n                  CommandHandler('delete_all_notes', ask_to_delete_all_notes_handler),\r\n                  CommandHandler('create', ask_note_name_handler), CommandHandler('read', read_name_handler),\r\n                  CommandHandler('edit', ask_name_of_edit_handler), CommandHandler('delete', ask_delete_note)],\r\n    states={\r\n        DELETE_ALL: [MessageHandler(Filters.text & ~Filters.command, delete_all_handler)],\r\n        DETAILS: [MessageHandler(Filters.text & ~Filters.command, details_note_handler)],\r\n        CREATE: [MessageHandler(Filters.text & ~Filters.command, create_note_handler)],\r\n        READ: [MessageHandler(Filters.text & ~Filters.command, read_note_handler)],\r\n        EDIT_DETAILS: [MessageHandler(Filters.text & ~Filters.command, ask_details_of_edit_handler)],\r\n        EDIT: [MessageHandler(Filters.text & ~Filters.command, final_edit_handler)],\r\n        DELETE: [MessageHandler(Filters.text & ~Filters.command, delete_handler)]\r\n    },\r\n    fallbacks=[CommandHandler('cancel', greeting)]\r\n)\r\n\r\n\r\ndef main():\r\n    updater = Updater(token=API_TOKEN, use_context=True)\r\n    dispatcher = updater.dispatcher\r\n    dispatcher.add_handler(CommandHandler('start', greeting))\r\n    dispatcher.add_handler(CommandHandler('display', display_notes_handler))\r\n    dispatcher.add_handler(CommandHandler('help', help_handler))\r\n    dispatcher.add_handler(conversation_handler)\r\n    updater.start_polling()\r\n\r\n\r\nif __name__ == '__main__':\r\n    main()\r\n
+===================================================================
+diff --git a/Notes_in_telegramm/telegramm_notes_hand.py b/Notes_in_telegramm/telegramm_notes_hand.py
+--- a/Notes_in_telegramm/telegramm_notes_hand.py	
++++ b/Notes_in_telegramm/telegramm_notes_hand.py	
+@@ -17,22 +17,29 @@
+ 
+ 
+ def help_handler(update, context):  # функция-обработчик (Запускается по команде /help)
+-    context.bot.send_message(chat_id=update.message.chat_id, text='Ух-ты! На этом весь мой функционал закончился! :( '
+-                                                                  '\n Если есть предложения, или рекомендации по '
+-                                                                  'улучшению бота, то напишите сюда --> @Markceil\n '
+-                                                                  'Был бы очень благодарен 🤩')
++    context.bot.send_message(
++        chat_id=update.message.chat_id,
++        text='Ух-ты! На этом весь мой функционал закончился! :( '
++        '\n Если есть предложения, или рекомендации по '
++        'улучшению бота, то напишите сюда --> @Markceil\n '
++        'Был бы очень благодарен 🤩')
+ 
+ 
+-def display_notes_handler(update, context):  # функция обработчик отправление названий всех файлов
++# функция обработчик отправление названий всех файлов
++def display_notes_handler(update, context):
+     notes_list = display_notes(update.message.chat_id)
+     if notes_list:
+         for i in notes_list:
+-            context.bot.send_message(chat_id=update.message.chat_id, text=str(i))
++            context.bot.send_message(
++                chat_id=update.message.chat_id, text=str(i))
+     else:
+-        context.bot.send_message(chat_id=update.message.chat_id, text='Файлов пока что нет')
++        context.bot.send_message(
++            chat_id=update.message.chat_id,
++            text='Файлов пока что нет')
+ 
+ 
+-def ask_to_delete_all_notes_handler(update, context):  # Спрашивание об удалении файлов
++# Спрашивание об удалении файлов
++def ask_to_delete_all_notes_handler(update, context):
+     # Изначальная проверка наличия файлов
+     if display_notes(update.message.chat_id):
+         update.message.reply_text(
+@@ -56,12 +63,15 @@
+ 
+ def details_note_handler(update, context):
+     context.user_data['note_name'] = update.message.text
+-    update.message.reply_text(f"Напиши содержимое заметки {context.user_data['note_name']}")
++    update.message.reply_text(
++        f"Напиши содержимое заметки {context.user_data['note_name']}")
+     return CREATE
+ 
+ 
+ def create_note_handler(update, context):
+-    result = build_note(context.user_data['note_name'], update.message.text, str(update.message.chat_id))
++    result = build_note(
++        context.user_data['note_name'], update.message.text, str(
++            update.message.chat_id))
+     update.message.reply_text(f'{result}')
+     return ConversationHandler.END
+ 
+@@ -84,12 +94,15 @@
+ 
+ def ask_details_of_edit_handler(update, context):
+     context.user_data['note_name'] = update.message.text
+-    update.message.reply_text(f"Напиши содержимое заметки {update.message.text}")
++    update.message.reply_text(
++        f"Напиши содержимое заметки {update.message.text}")
+     return EDIT
+ 
+ 
+ def final_edit_handler(update, context):
+-    result = edit_note(context.user_data['note_name'], str(update.message.chat_id), update.message.text)
++    result = edit_note(
++        context.user_data['note_name'], str(
++            update.message.chat_id), update.message.text)
+     update.message.reply_text(f"{result}")
+     return ConversationHandler.END
+ 
+@@ -98,11 +111,13 @@
+     update.message.reply_text(f'Напиши название заметки')
+     return DELETE
+ 
++
+ def delete_handler(update, context):
+     result = delete_note(update.message.text, update.message.chat_id)
+     update.message.reply_text(f"{result}")
+     return ConversationHandler.END
+ 
++
+ conversation_handler = ConversationHandler(
+     entry_points=[CommandHandler('start', greeting),
+                   CommandHandler('delete_all_notes', ask_to_delete_all_notes_handler),
+Index: tic_tac_toe/tic tac toe.py
+===================================================================
+diff --git a/tic_tac_toe/tic tac toe.py b/tic_tac_toe/tic_tac_toe.py
+rename from tic_tac_toe/tic tac toe.py
+rename to tic_tac_toe/tic_tac_toe.py
+--- a/tic_tac_toe/tic tac toe.py	
++++ b/tic_tac_toe/tic_tac_toe.py	
+@@ -4,46 +4,46 @@
+ 
+ def draw_colored_board(board):  # Визуализация доски с цветовой палитрой
+     for i in board:
+-        row = ''
++        row = ""
+         for cell in i:
+-            if cell == 'X':
+-                row += f'| {Fore.RED}{cell}{Style.RESET_ALL} '
+-            elif cell == 'O':
+-                row += f'| {Fore.BLUE}{cell}{Style.RESET_ALL} '
++            if cell == "X":
++                row += f"| {Fore.RED}{cell}{Style.RESET_ALL} "
++            elif cell == "O":
++                row += f"| {Fore.BLUE}{cell}{Style.RESET_ALL} "
+             else:
+-                row += f'| {cell} '
+-        print(row + '|')
+-        print('-------------')
++                row += f"| {cell} "
++        print(row + "|")
++        print("-------------")
+ 
+ 
+ def check_win(board, f_p, s_p):  # Проверка на выйгрыш
+     # Проверка выигрышных комбинаций по горизонтали и вертикали
+     for i in range(3):
+         if board[i] == [f_p, f_p, f_p]:
+-            print(f'The player who played for {f_p} won!')
++            print(f"The player who played for {f_p} won!")
+             return True
+         elif board[i] == [s_p, s_p, s_p]:
+-            print(f'The player who played for {s_p} won!')
++            print(f"The player who played for {s_p} won!")
+             return True
+         elif [board[0][i], board[1][i], board[2][i]] == [f_p, f_p, f_p]:
+-            print(f'The player who played for {f_p} won!')
++            print(f"The player who played for {f_p} won!")
+             return True
+         elif [board[0][i], board[1][i], board[2][i]] == [s_p, s_p, s_p]:
+-            print(f'The player who played for {s_p} won!')
++            print(f"The player who played for {s_p} won!")
+             return True
+ 
+     # Проверка выигрышной комбинации по диагонали
+     if [board[0][0], board[1][1], board[2][2]] == [f_p, f_p, f_p]:
+-        print(f'The player who played for {f_p} won!')
++        print(f"The player who played for {f_p} won!")
+         return True
+     elif [board[0][0], board[1][1], board[2][2]] == [s_p, s_p, s_p]:
+-        print(f'The player who played for {s_p} won!')
++        print(f"The player who played for {s_p} won!")
+         return True
+     elif [board[0][2], board[1][1], board[2][0]] == [f_p, f_p, f_p]:
+-        print(f'The player who played for {f_p} won!')
++        print(f"The player who played for {f_p} won!")
+         return True
+     elif [board[0][2], board[1][1], board[2][0]] == [s_p, s_p, s_p]:
+-        print(f'The player who played for {s_p} won!')
++        print(f"The player who played for {s_p} won!")
+         return True
+ 
+     return False
+@@ -55,16 +55,16 @@
+ 
+ 
+ def free_field_check(board, f_c, s_c):  # проверка на занятость поля
+-    if board[f_c][s_c] != ' ':
++    if board[f_c][s_c] != " ":
+         return True
+ 
+ 
+ def check_tie(board):
+     for row in board:
+         for cell in row:
+-            if cell == ' ':
++            if cell == " ":
+                 return False
+-    print('Tie!')
++    print("Tie!")
+     return True
+ 
+ 
+@@ -75,25 +75,25 @@
+ 
+ 
+ def ask_and_make_move(player, board):
+-    print(f'{player} Move')
+-    coordinate = input('write coordinate of x and y (e.g 0 0): ').strip().split()
++    print(f"{player} Move")
++    coordinate = input("write coordinate of x and y (e.g 0 0): ").strip().split()
+     x, y = int(coordinate[0]), int(coordinate[1])
+     if out_of_bounce(x, y):
+-        print('you should write between 0 and 2 ;)')
++        print("you should write between 0 and 2 ;)")
+         return False
+     if free_field_check(board, y, x):
+-        print('The field is already taken')
++        print("The field is already taken")
+         return False
+     board[y][x] = player
+     return True
+ 
+ 
+ def tic_tac_toe():
+-    game_board = [[' ' for _ in range(3)] for _ in range(3)]
++    game_board = [[" " for _ in range(3)] for _ in range(3)]
+     draw_colored_board(game_board)
+ 
+-    first_player = 'X'
+-    second_player = 'O'
++    first_player = "X"
++    second_player = "O"
+ 
+     current_player = first_player
+     while True:
+@@ -105,7 +105,7 @@
+                 if restart.lower() != "y":
+                     break
+                 else:
+-                    game_board = [[' ' for i in range(3)] for y in range(3)]
++                    game_board = [[" " for _ in range(3)] for _ in range(3)]
+                     draw_colored_board(game_board)
+ 
+             if check_tie(game_board):
+@@ -113,8 +113,7 @@
+                 if restart.lower() != "y":
+                     break
+                 else:
+-
+-                    game_board = [[' ' for i in range(3)] for y in range(3)]
++                    game_board = [[" " for _ in range(3)] for _ in range(3)]
+                     draw_colored_board(game_board)
+ 
+ 
+Index: Notes_in_telegramm/notes2.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\r\n\r\nPATH = f'../do_not_save_files/notes'  # директория файла пользователей\r\n\r\n\r\ndef logging(chat_id):\r\n    with open('../do_not_save_files/users.txt', 'r', encoding='utf-8') as f:  # Переход в директорию do_not_save_files\r\n        id_of_users = f.read()\r\n    if not str(chat_id) in id_of_users:\r\n        with open('../do_not_save_files/users.txt', 'a', encoding='utf-8') as f:\r\n            f.write(f'{str(chat_id)} ')\r\n\r\n\r\ndef check_extension(f):  # Проверка на наличия '.txt' в конце\r\n    try:\r\n        if not f.endswith('.txt'):\r\n            f += '.txt'\r\n        return f\r\n    except:\r\n        print('Произошла ошибка')\r\n\r\n\r\ndef check_directory(pth):  # проверка существования файла для хранения заметки\r\n    try:\r\n        if not os.path.exists((pth)):\r\n            os.mkdir(pth)\r\n    except Exception as err:\r\n        return f'Произошла ошибка {err}'\r\n\r\n\r\ndef build_note(note_name, note_text, chat_id):  # создание заметки\r\n    try:\r\n        check_directory(f'{PATH}/{chat_id}')\r\n        note_name = check_extension(note_name)\r\n        with open(f'{PATH}/{chat_id}/{note_name}', 'w', encoding='utf-8') as f:\r\n            f.write(note_text)\r\n        return f'Файл {note_name} создан успешно!\\n'\r\n    except Exception as e:\r\n        return f\"Произошла ошибка. {e}\"\r\n\r\n\r\ndef read_note(note_name, chat_id):  # Прочтение файла\r\n    try:\r\n        note_name = check_extension(note_name)\r\n        if os.path.isfile(f'{PATH}/{chat_id}/{note_name}'):\r\n            with open(f'{PATH}/{chat_id}/{note_name}', 'r', encoding='utf-8') as f:\r\n                text = f.read()\r\n            return text\r\n        else:\r\n            return 'Такого файла не существует.'\r\n    except Exception as err:\r\n        return f'Произошла ошибка {f}'\r\n\r\n\r\ndef edit_note(name, chat_id, new_text):  # редактирование заметки\r\n    try:\r\n        name = check_extension(name)\r\n        if os.path.exists(f'{PATH}/{chat_id}/{name}'):\r\n            with open(f'{PATH}/{chat_id}/{name}', 'w', encoding='utf-8') as f:\r\n                f.write(str(new_text))\r\n                return (f'Файл \"{name}\" Изменён успешно!')\r\n        else:\r\n            return ('Я не знаю такого файла, может ошибся? \uD83D\uDE10')\r\n    except Exception as err:\r\n        return f'Произошла ошибка {err}'\r\n\r\n\r\ndef delete_note(name, chat_id):  # Удаление заметки\r\n    try:\r\n        name = check_extension(name)\r\n        if os.path.isfile(f'{PATH}/{chat_id}/{name}'):\r\n            os.remove(f'{PATH}/{chat_id}/{name}')\r\n            return (f'Заметка {name} удалена успешно')\r\n        else:\r\n            return ('Нельзя удалить то, чего и так нет.')\r\n    except Exception as err:\r\n        return (f'Произошла ошибка {err}')\r\n\r\n\r\ndef display_notes(chat_id):  # Вывод названий файлов в порядке увеличения длины\r\n    try:\r\n        notes = os.listdir(f'{PATH}/{chat_id}')\r\n        reversed_notes = sorted(notes, key=len)\r\n        return reversed_notes\r\n    except Exception as err:\r\n        print(f'Произошла ошибка {err}')\r\n\r\n\r\ndef delete_all_notes(chat_id, answer):  # Уже возвращает список удаленных файлов\r\n    try:\r\n        if answer == 'y':\r\n            notes = os.listdir(f'{PATH}/{chat_id}')\r\n            reversed_notes = sorted(notes, key=len)\r\n            for y in reversed_notes:\r\n                y = check_extension(y)\r\n                if os.path.isfile(f'{PATH}/{chat_id}/{y}'):\r\n                    os.remove(f'{PATH}/{chat_id}/{y}')\r\n            return f'Все заметки удалены успешно! ({\", \".join(reversed_notes)})'\r\n        else:\r\n            return 'Действие отменено'\r\n    except Exception as err:\r\n        return f'Произошла ошибка {err}'\r\n
+===================================================================
+diff --git a/Notes_in_telegramm/notes2.py b/Notes_in_telegramm/notes2.py
+--- a/Notes_in_telegramm/notes2.py	
++++ b/Notes_in_telegramm/notes2.py	
+@@ -42,7 +42,7 @@
+ def read_note(note_name, chat_id):  # Прочтение файла
+     try:
+         note_name = check_extension(note_name)
+-        if os.path.isfile(f'{PATH}/{chat_id}/{note_name}'):
++        if os.path.isfile(f'{PATH}/{chat_id}/{note_name}'):  # Проверка наличия такого файла
+             with open(f'{PATH}/{chat_id}/{note_name}', 'r', encoding='utf-8') as f:
+                 text = f.read()
+             return text
+@@ -55,7 +55,7 @@
+ def edit_note(name, chat_id, new_text):  # редактирование заметки
+     try:
+         name = check_extension(name)
+-        if os.path.exists(f'{PATH}/{chat_id}/{name}'):
++        if os.path.exists(f'{PATH}/{chat_id}/{name}'):  # Проверка существования файла
+             with open(f'{PATH}/{chat_id}/{name}', 'w', encoding='utf-8') as f:
+                 f.write(str(new_text))
+                 return (f'Файл "{name}" Изменён успешно!')
+@@ -79,11 +79,11 @@
+ 
+ def display_notes(chat_id):  # Вывод названий файлов в порядке увеличения длины
+     try:
+-        notes = os.listdir(f'{PATH}/{chat_id}')
++        notes = os.listdir(f'{PATH}/{chat_id}')  # Заметки каталога
+         reversed_notes = sorted(notes, key=len)
+-        return reversed_notes
++        return reversed_notes  # возвращает список заметок в порядке возрастание
+     except Exception as err:
+-        print(f'Произошла ошибка {err}')
++        return f'Произошла ошибка {err}'
+ 
+ 
+ def delete_all_notes(chat_id, answer):  # Уже возвращает список удаленных файлов
+Index: notes_in_python/notes.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\r\n\r\ndef check_extension(f):  # Проверка на наличие '.txt' в конце\r\n    try:\r\n        if not f.endswith('.txt'):\r\n            f += '.txt'\r\n        return f\r\n    except:\r\n        print('Произошла ошибка')\r\n\r\n\r\ndef build_note(note_name, note_text):  # билд заметки (Для функции create note)\r\n    try:\r\n        note_name = check_extension(note_name)\r\n        with open(note_name, 'w', encoding='utf-8') as f:\r\n            f.write(note_text)\r\n        print(f'Файл {note_name} создан успешно!\\n')\r\n    except:\r\n        print(\"Произошла ошибка.\")\r\n\r\n\r\ndef create_note():  # создание файла\r\n    try:\r\n        Name = input('Введите название файла\\n')\r\n        Text = input('Введите текст\\n')\r\n        build_note(Name, Text)\r\n    except:\r\n        print(\"Произошла ошибка.\")\r\n\r\n\r\ndef read_note(name):  # Прочтение файла\r\n    try:\r\n        name = check_extension(name)\r\n        if os.path.isfile(name):\r\n            with open(name, 'r', encoding='utf-8') as f:\r\n                text = f.read()\r\n            print(text)\r\n            return True\r\n        else:\r\n            print('Такого файла не существует.')\r\n            return False\r\n    except:\r\n        print('Произошла ошибка')\r\n        return False\r\n\r\n\r\ndef edit_note(name):  # редактирование заметки\r\n    try:\r\n        name = check_extension(name)\r\n        if read_note(name):\r\n            new_text = input('Введите новый текст: ')\r\n            with open(name, 'w', encoding='utf-8') as f:\r\n                f.write(new_text)\r\n                print(f'Файл \"{name}\" Изменён успешно!')\r\n        else:\r\n            print('Что редактировать то? \uD83D\uDE10')\r\n    except:\r\n        print('Произошла ошибка')\r\n\r\n\r\ndef delete_note(name):  # Удаление заметки\r\n    try:\r\n        name = check_extension(name)\r\n        if os.path.isfile(name):\r\n            os.remove(name)\r\n            print(f'Заметка {name} удалена успешно')\r\n        else:\r\n            print('Нельзя удалить то, чего и так нет.')\r\n    except:\r\n        print('Произошла ошибка')\r\n\r\n\r\ndef display_notes():  # Вывод названий файлов в порядке увеличения длины\r\n    try:\r\n        notes = [note for note in os.listdir() if note.endswith('.txt')]\r\n        reversed_notes = sorted(notes, key=len)\r\n        if notes:\r\n            for i in reversed_notes:\r\n                print(i)\r\n        else:\r\n            print('Файлов пока что нет')\r\n    except:\r\n        print('Произошла ошибка')\r\n\r\n\r\ndef delete_all_notes():  # Удаление всех файлов\r\n    try:\r\n        notes = [note for note in os.listdir() if note.endswith('.txt')]\r\n        if notes:\r\n            for n in notes:\r\n                delete_note(n)\r\n            print('Все заметки удалены!')\r\n        else:\r\n            print('Файлов пока что нет')\r\n    except:\r\n        print('Произошла ошибка')\r\n        return True\r\n\r\n\r\ndef main():  # объединение и вызовы функций\r\n    try:\r\n        print('Выберете действие, написав цифру:', end='')\r\n        print('''\r\n    1 - создать заметку\r\n    2 - Прочесть заметку\r\n    3 - Изменить заметку\r\n    4 - Удалить заметку\r\n    5 - Посмотреть созданные файлы\r\n    6 - Удалить все файлы\r\n    7 - Выход''')\r\n        func = int(input('Ввод: '))\r\n        match func:\r\n            case 1:\r\n                create_note()\r\n                return True\r\n            case 2:\r\n                note_name = input('Какую заметку вы хотите прочесть?\\n')\r\n                read_note(note_name)\r\n                return True\r\n            case 3:\r\n                note_name = input('Какую заметку вы хотите изменить?\\n')\r\n                edit_note(note_name)\r\n                return True\r\n            case 4:\r\n                note_name = input('Какую заметку вы хотите удалить?\\n')\r\n                delete_note(note_name)\r\n                return True\r\n            case 5:\r\n                display_notes()\r\n                return True\r\n            case 6:\r\n                output = input('Вы уверены? \\n Да - \"y\" Нет - \\\"n\\\" ')\r\n                if output == 'y':\r\n                    delete_all_notes()\r\n                    return True\r\n                else:\r\n                    return True\r\n            case 7:\r\n                ...\r\n            case _:\r\n                print('Ты должен выбрать в диапозоне от 1 до 7 ;)')\r\n                return True\r\n    except:\r\n        print('Произошла ошибка!')\r\n        return True\r\n\r\n\r\nif __name__ == '__main__':\r\n    while main():\r\n        pass\r\n
+===================================================================
+diff --git a/notes_in_python/notes.py b/notes_in_python/notes.py
+--- a/notes_in_python/notes.py	
++++ b/notes_in_python/notes.py	
+@@ -1,37 +1,29 @@
+ import os
+ 
++
+ def check_extension(f):  # Проверка на наличие '.txt' в конце
+     try:
+         if not f.endswith('.txt'):
+             f += '.txt'
+         return f
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+ 
+ 
+-def build_note(note_name, note_text):  # билд заметки (Для функции create note)
++def build_note(note_name, note_text):  # Создание заметки
+     try:
+         note_name = check_extension(note_name)
+         with open(note_name, 'w', encoding='utf-8') as f:
+             f.write(note_text)
+         print(f'Файл {note_name} создан успешно!\n')
+-    except:
+-        print("Произошла ошибка.")
+-
+-
+-def create_note():  # создание файла
+-    try:
+-        Name = input('Введите название файла\n')
+-        Text = input('Введите текст\n')
+-        build_note(Name, Text)
+-    except:
+-        print("Произошла ошибка.")
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+ 
+ 
+ def read_note(name):  # Прочтение файла
+     try:
+         name = check_extension(name)
+-        if os.path.isfile(name):
++        if os.path.isfile(name):  # проверка наличия файла
+             with open(name, 'r', encoding='utf-8') as f:
+                 text = f.read()
+             print(text)
+@@ -39,8 +31,8 @@
+         else:
+             print('Такого файла не существует.')
+             return False
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+         return False
+ 
+ 
+@@ -54,8 +46,8 @@
+                 print(f'Файл "{name}" Изменён успешно!')
+         else:
+             print('Что редактировать то? 😐')
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+ 
+ 
+ def delete_note(name):  # Удаление заметки
+@@ -66,8 +58,8 @@
+             print(f'Заметка {name} удалена успешно')
+         else:
+             print('Нельзя удалить то, чего и так нет.')
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+ 
+ 
+ def display_notes():  # Вывод названий файлов в порядке увеличения длины
+@@ -79,8 +71,8 @@
+                 print(i)
+         else:
+             print('Файлов пока что нет')
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+ 
+ 
+ def delete_all_notes():  # Удаление всех файлов
+@@ -92,8 +84,8 @@
+             print('Все заметки удалены!')
+         else:
+             print('Файлов пока что нет')
+-    except:
+-        print('Произошла ошибка')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+         return True
+ 
+ 
+@@ -101,7 +93,6 @@
+     try:
+         print('Выберете действие, написав цифру:', end='')
+         print('''
+-    1 - создать заметку
+     2 - Прочесть заметку
+     3 - Изменить заметку
+     4 - Удалить заметку
+@@ -110,9 +101,6 @@
+     7 - Выход''')
+         func = int(input('Ввод: '))
+         match func:
+-            case 1:
+-                create_note()
+-                return True
+             case 2:
+                 note_name = input('Какую заметку вы хотите прочесть?\n')
+                 read_note(note_name)
+@@ -138,10 +126,10 @@
+             case 7:
+                 ...
+             case _:
+-                print('Ты должен выбрать в диапозоне от 1 до 7 ;)')
++                print('Ты должен выбрать в промежутке от 1 до 7 ;)')
+                 return True
+-    except:
+-        print('Произошла ошибка!')
++    except Exception as err:
++        print(f'Произошла ошибка {err}')
+         return True
+ 
+ 
