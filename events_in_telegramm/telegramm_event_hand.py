@@ -56,21 +56,23 @@ def ask_event_time(update, context):
 
 
 def create_event_handler(update, context):
-    event_id = Calendar.create_event(
-        context.chat_data["event_name"],
-        context.chat_data["details"],
-        context.chat_data["date"],
-        update.message.text,
-        update.message.chat_id,
-    )
+    event_data = {'event_name': context.chat_data["event_name"],
+                  'details': context.chat_data["details"],
+                  'event_date': context.chat_data["date"],
+                  'event_time': update.message.text,
+                  'chat_id': update.message.chat_id}
+    event_id = Calendar.create_event(event_data)
     context.bot.send_message(
         chat_id=update.message.chat_id,
-        text=f"Событие {context.chat_data['event_name']} создано и имеет номер {event_id}.",
+        text=f"Событие {context.chat_data['event_name']} создано с номером {event_id}.",
+
     )
     return ConversationHandler.END
 
 
-def choose_event(update,context):
+
+
+def choose_event(update, context):
     context.chat_data["events_function"] = update.message.text
     if Calendar.return_user_events(update.message.chat_id):  # проверка на наличие событий
         context.chat_data["events"] = Calendar.return_user_events(update.message.chat_id)
