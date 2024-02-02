@@ -13,7 +13,8 @@ from telegram.ext import (
 )
 from calendar_class import Calendar
 
-DETAILS, DATE, TIME, CREATE, READ_EVENT, CHECK_EXIST, ASK_FOR_CHANGE, EDIT_EVENT = range(8)
+(DETAILS, DATE, TIME, CREATE, READ_EVENT, CHECK_EXIST, ASK_FOR_CHANGE,
+ EDIT_EVENT, CHOOSE_TO_DELETE) = range(9)
 
 """
 Функции ask_event_details, ask_event_name, ask_event_date, ask_event_time -
@@ -21,6 +22,19 @@ DETAILS, DATE, TIME, CREATE, READ_EVENT, CHECK_EXIST, ASK_FOR_CHANGE, EDIT_EVENT
 и перенаправляют посредством ключей в словаре.
 Сам ключ - обозначает то, на какую функцию он перенаправляется
 """
+
+
+
+def start(update, context):
+    """Приетственный текст, весь функционал"""
+    (update.message.reply_text("""
+*Привет!* Я бот, который поможет тебе создавать, редактировать, удалять и просматривать события. 
+
+Для создания нового события используй команду */create*. Чтобы просмотреть все свои события, используй команду */display*. Чтобы удалить все свои события, используй команду */delete_all*. Чтобы удалить конкретное событие, используй команду */delete*. Чтобы отредактировать событие, используй команду */edit*. Чтобы прочитать информацию о конкретном событии, используй команду */read*.
+
+Надеюсь, я смогу помочь тебе в управлении твоими событиями! 🤖
+
+""", parse_mode='markdown'))
 
 def cancel(update, _context):
     """При использовании этой команды, пользователь отменяет диалог с командами"""
@@ -86,9 +100,9 @@ def choose_event(update, context):
     if Calendar.return_user_events(update.message.chat_id):  # проверка на наличие событий
         context.chat_data["all_events"] = Calendar.return_user_events(update.message.chat_id)
         buttons = [[]]
-        for d in context.chat_data['all_events']:
-            name = d[list(d.keys())[0]]['name']
-            id_of_event = list(d.keys())[0]
+        for event in context.chat_data['all_events']:
+            name = event[list(event.keys())[0]]['name']
+            id_of_event = list(event.keys())[0]
             buttons[0].append(f"{name} ({id_of_event})")  # добавление имён
         # Итерируемся по каждому событию - словарю в списке
         update.message.reply_text("Выберите событие:", reply_markup=ReplyKeyboardMarkup(
@@ -125,8 +139,6 @@ def check_exist_of_event(update, context):
             return edit_event_handler(update, context)
         case "/delete":
             return delete_event_handler(update, context)
-        case "/edit":
-            return delete_event_handler(update, context)
 
 
 def read_event_handler(update, context):
@@ -141,7 +153,6 @@ id: {event_id}
 Время: {event[event_id]['event_time']}
 """)
     return ConversationHandler.END
-
 
 
 def display_events(update, context):
@@ -171,7 +182,7 @@ def delete_event_handler(update, context):
     return ConversationHandler.END
 
 
-def edit_event_handler(update, _context):
+def edit_event_handler(update, context):
     """Функция спрашивает, что конкретно хотим изменить."""
     ReplyKeyboardRemove()
     buttons = [['имя', 'детали', 'дата', 'время']]
@@ -212,6 +223,31 @@ def edit_event(update, context):
     return ConversationHandler.END
 
 
+def delete_all_events(update, context):
+    """Спрашивание об удалении всех заметок"""
+    update.message.reply_text("""*Вы уверены?*
+Да-'Y'/Нет-'N'
+""", parse_mode='Markdown')
+    return CHOOSE_TO_DELETE
+
+def check_chose_to_delete(update, context):
+    """В зависимости от сообщения - удаление файлов
+    (С помощью итераци событий через delete_user_events)"""
+    chose = update.message.text
+    if chose.lower() == 'y':
+        if Calendar.return_user_events(update.message.chat_id):  # проверка на наличие событий
+            context.chat_data["all_events"] = Calendar.return_user_events(update.message.chat_id)
+            for event in context.chat_data['all_events']:
+                id_of_event = list(event.keys())[0]
+                result = Calendar.delete_user_events(update.message.chat_id, id_of_event)
+                update.message.reply_text(f"{result}")
+            update.message.reply_text("*Все события удалены успешно!*", parse_mode='markdown')
+            return ConversationHandler.END
+        update.message.reply_text("Событий - нет")
+        return ConversationHandler.END
+    update.message.reply_text("Действие отменено!")
+    return ConversationHandler.END
+
 conversation_handler = ConversationHandler(
     entry_points=[
         CommandHandler("create", ask_event_name),
@@ -219,6 +255,7 @@ conversation_handler = ConversationHandler(
         CommandHandler('delete', choose_event),
         CommandHandler('edit', choose_event),
         CommandHandler('display', display_events),
+        CommandHandler('delete_all', delete_all_events),
     ],
     states={
         DETAILS: [MessageHandler(Filters.text & ~Filters.command, ask_event_details)],
@@ -227,7 +264,8 @@ conversation_handler = ConversationHandler(
         CREATE: [MessageHandler(Filters.text & ~Filters.command, create_event_handler)],
         CHECK_EXIST: [MessageHandler(Filters.text & ~Filters.command, check_exist_of_event)],
         ASK_FOR_CHANGE: [MessageHandler(Filters.text & ~Filters.command, ask_for_write_new_text)],
-        EDIT_EVENT: [MessageHandler(Filters.text & ~Filters.command, edit_event)]
+        EDIT_EVENT: [MessageHandler(Filters.text & ~Filters.command, edit_event)],
+        CHOOSE_TO_DELETE: [MessageHandler(Filters.text & ~Filters.command, check_chose_to_delete)],
 
     },
     fallbacks=[CommandHandler("cancel", cancel)],
@@ -239,6 +277,7 @@ def main():
     updater = Updater(token=API_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
     dispatcher.add_handler(conversation_handler)
+    dispatcher.add_handler(CommandHandler("start", start))
     updater.start_polling()
 
 
