@@ -132,7 +132,7 @@ def check_exist_of_event(update, context):
         update.message.reply_text("Такого события не существует.")
         return ConversationHandler.END
 
-    match context.chat_data["events_function"]:
+    match context.chat_data["events_function"].lower():
         case "/read":
             return read_event_handler(update, context)
         case "/edit":
