@@ -1,2 +1,5 @@
 /ignoring_files
-secrets.py
+events_in_telegramm/secrets.py
+/.venv
+/.idea/
+events_in_telegramm/events.json
