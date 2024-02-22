@@ -10,6 +10,19 @@ class Calendar:
     event_id = 1
 
     @classmethod
+    def check_exist_of_event(cls, event, chat_id):
+        """В этой функции проверяется существование данного события.
+            В случае неправильного написания, словарь не найдется в списке
+            и отправится сообщение о его не существовании."""
+        user_event = {}
+        event_id = int(event.split()[-1].strip('()'))  # получение id из сообщения пользователя
+        for dict_event in cls.return_user_events(chat_id):  # итерация всех событий владельца
+            if list(dict_event.keys())[0] == event_id:
+                user_event = dict_event  # добавление выбранного события в словарь
+                break
+        return user_event
+
+    @classmethod
     def adding_event_to_file(cls, dict_event):
         """Этот метод - добавляет в файл 'events.jsonl' словарь-событие"""
 
@@ -52,11 +65,15 @@ class Calendar:
         return len(cls.events) + 1
 
     @classmethod
-    def update_all_events(cls):  # TODO переделать под формат json lines
-        """Обновляет список событий из файла events.json, вытягивает их"""
+    def update_all_events(cls):
+        """Обновляет список событий из файла events.jsonl, вытягивает их"""
         try:
-            with open('events.json', 'r', encoding='utf-8') as file:
-                cls.events = json.load(file)
+            with open('events.jsonl', 'r', encoding='utf-8') as file:
+                for iter_event in file:
+                    whole_event = json.loads(iter_event)
+                    event_values = list(whole_event.values())[0]
+                    event_id = int(list(whole_event.keys())[0])
+                    cls.events[event_id] = event_values
         except FileNotFoundError as err:
             print(f'file events.json was not found {err}')
 
@@ -95,7 +112,7 @@ class Calendar:
         cls.update_all_events()
         user_events = []
         for event in cls.events:
-            if cls.events[event]['chat_id'] == chat_id:
+            if cls.events[event]['id'] == chat_id:
                 user_events.append({event: cls.events[event]})
         return user_events
 

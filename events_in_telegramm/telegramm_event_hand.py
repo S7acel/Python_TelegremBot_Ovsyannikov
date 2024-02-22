@@ -115,24 +115,17 @@ def choose_event(update, context):
     return ConversationHandler.END
 
 
-def check_exist_of_event(update, context):
-    """В этой функции проверяется существовани данного события.
-    В случае неправильного написания, словарь не найдется в списке
-    и отправится сообщени о его несуществовании.
-    Так же в этой функции, происходит переход на другую функцию,
+def chose_action_for_event(update, context):
+    """В этой функции, происходит переход на другую функцию,
      в зависимости от команды"""
     ReplyKeyboardRemove()
-    event = update.message.text
-    event_id = event.split()[-1].strip('()')  # получение id из сообщения пользователя
-    found_event = False
-    for dict_event in context.chat_data["all_events"]:  # итерация всех событий владельца
-        if list(dict_event.keys())[0] == event_id:
-            found_event = True
-            context.chat_data["event"] = dict_event  # добавление выбранного события в словарь
-            break
-    if not found_event:
-        update.message.reply_text("Такого события не существует.")
-        return ConversationHandler.END
+    event_data = Calendar.check_exist_of_event(update.message.text, update.message.chat_id)
+    if event_data:
+        context.chat_data["event"] = event_data
+    else:
+        update.message.reply_text("Такого события не существует..")
+        return conversation_handler.END
+
 
     match context.chat_data["events_function"].lower():
         case "/read":
@@ -151,8 +144,8 @@ def read_event_handler(update, context):
 id: {event_id}
 Имя: {event[event_id]['name']}
 Детали: {event[event_id]['details']}
-Дата: {event[event_id]['event_date']}
-Время: {event[event_id]['event_time']}
+Дата: {event[event_id]['date']}
+Время: {event[event_id]['time']}
 """)
     return ConversationHandler.END
 
@@ -264,7 +257,7 @@ conversation_handler = ConversationHandler(
         DATE: [MessageHandler(Filters.text & ~Filters.command, ask_event_date)],
         TIME: [MessageHandler(Filters.text & ~Filters.command, ask_event_time)],
         CREATE: [MessageHandler(Filters.text & ~Filters.command, create_event_handler)],
-        CHECK_EXIST: [MessageHandler(Filters.text & ~Filters.command, check_exist_of_event)],
+        CHECK_EXIST: [MessageHandler(Filters.text & ~Filters.command, chose_action_for_event)],
         ASK_FOR_CHANGE: [MessageHandler(Filters.text & ~Filters.command, ask_for_write_new_text)],
         EDIT_EVENT: [MessageHandler(Filters.text & ~Filters.command, edit_event)],
         CHOOSE_TO_DELETE: [MessageHandler(Filters.text & ~Filters.command, check_chose_to_delete)],
