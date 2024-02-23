@@ -76,7 +76,7 @@ def ask_event_time(update, context):
 def create_event_handler(update, context):
     """После спрашивания всей необходимой информации,
     используется метод для создания события в классе Calendar.
-    Информация записывается в файл events.json"""
+    Информация записывается в файл с помощью метода create_and_add_event_to_file"""
     event_data = {'event_name': context.chat_data["event_name"],
                   'details': context.chat_data["details"],
                   'event_date': context.chat_data["date"],
@@ -151,16 +151,16 @@ id: {event_id}
 
 
 def display_events(update, context):
-    """Итерация и показ всех событий пользователся"""
+    """Итерация и показ всех событий"""
     if Calendar.return_user_events(update.message.chat_id):
-        context.chat_data["all_events"] = Calendar.return_user_events(update.message.chat_id)
-        for d in context.chat_data['all_events']:
+        all_events = Calendar.return_user_events(update.message.chat_id)
+        for event in all_events:
             update.message.reply_text(f"""
-Id события: {list(d.keys())[0]}
-Имя события: {list(d.values())[0]['name']}
-детали события: {list(d.values())[0]["details"]}
-дата события: {list(d.values())[0]['event_date']}
-время события: {list(d.values())[0]["event_time"]}
+Id события: {list(event.keys())[0]}
+Имя события: {list(event.values())[0]['name']}
+детали события: {list(event.values())[0]["details"]}
+дата события: {list(event.values())[0]['date']}
+время события: {list(event.values())[0]["time"]}
 """)
         return ConversationHandler.END
 
@@ -198,9 +198,9 @@ def ask_for_write_new_text(update, context):
         case 'детали':
             context.chat_data['edit_object'] = 'details'
         case 'дата':
-            context.chat_data['edit_object'] = 'event_date'
+            context.chat_data['edit_object'] = 'date'
         case 'время':
-            context.chat_data['edit_object'] = 'event_time'
+            context.chat_data['edit_object'] = 'time'
         case _:
             update.message.reply_text('Такого события - нет')
             return ConversationHandler.END
