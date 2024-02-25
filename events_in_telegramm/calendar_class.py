@@ -2,6 +2,10 @@
 import json
 
 
+class InstanceCreationNotAllowedError(Exception):
+    """Raised when an instance creation is not allowed"""
+
+
 class Calendar:
     """Этот класс - связка методов для хранения, чтения, изменения и удаления событий.
         Сами методы - не связаны с классом с точки зрения логики. Их можно достать из класса"""
@@ -9,7 +13,7 @@ class Calendar:
     events = {}
 
     def __new__(cls, *args, **kwargs):
-        raise Exception("Нельзя создать экземпляр этого класса")
+        raise InstanceCreationNotAllowedError("Нельзя создать экземпляр этого класса")
 
     @classmethod
     def check_exist_of_event(cls, event, chat_id):
@@ -30,8 +34,10 @@ class Calendar:
 
         try:
             with open('events.jsonl', mode, encoding='utf-8') as file:
-                json.dump(dict_event, file)
-                file.write('\n')
+                for event_id, event_data in dict_event.items():
+                    event = {event_id: event_data}
+                    json.dump(event, file)
+                    file.write('\n')
         except FileNotFoundError as err:
             print(f'Файл "events.jsonl"- не существует {err}')
 
@@ -85,7 +91,6 @@ class Calendar:
     def return_user_events(cls, chat_id):
         """Возвращает список всех событий пользователя (включая id и сами события)
         События находятся за счет chat_id пользователя"""
-        cls.update_all_events()
         user_events = []
         for event_id, event_data in cls.events.items():
             if event_data["id"] == chat_id:
@@ -96,7 +101,6 @@ class Calendar:
     def delete_user_events(cls, chat_id, id_of_event):
         """Удаляет элемент словаря, проверка принадлежности события происходит
          за счет сравнения chat id"""
-        cls.update_all_events()
         if cls.events[id_of_event]['id'] == chat_id:
             del cls.events[id_of_event]
             cls.adding_event_to_file(cls.events, mode='w')
@@ -108,7 +112,6 @@ class Calendar:
         """Редактирование элемента события. Сначала обновляются все события,
         а потом с проверяем принадлежность и уже изменяем его,
         так же записываем изменения"""
-        cls.update_all_events()
         if cls.events[id_of_event]['id'] == chat_id:
             cls.events[id_of_event][edit_object] = new_edit_object
             cls.adding_event_to_file(cls.events, mode='w')

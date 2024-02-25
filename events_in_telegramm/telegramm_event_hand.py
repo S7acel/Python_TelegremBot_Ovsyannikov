@@ -77,12 +77,8 @@ def create_event_handler(update, context):
     """После спрашивания всей необходимой информации,
     используется метод для создания события в классе Calendar.
     Информация записывается в файл с помощью метода create_and_add_event_to_file"""
-    event_data = {'event_name': context.chat_data["event_name"],
-                  'details': context.chat_data["details"],
-                  'event_date': context.chat_data["date"],
-                  'event_time': update.message.text,
-                  'chat_id': update.message.chat_id}
-    event_id = Calendar.create_and_add_event_to_file(context.chat_data["event_name"],context.chat_data["details"],
+    event_id = Calendar.create_and_add_event_to_file(context.chat_data["event_name"],
+                                                     context.chat_data["details"],
                                                      context.chat_data["date"], update.message.text,
                                                      update.message.chat_id)
     context.bot.send_message(
