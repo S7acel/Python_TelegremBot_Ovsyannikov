@@ -13,6 +13,7 @@ class Calendar:
     events = {}
 
     def __new__(cls, *args, **kwargs):
+        """Исключение для того чтобы не создавать экземпляры класса"""
         raise InstanceCreationNotAllowedError("Нельзя создать экземпляр этого класса")
 
     @classmethod
@@ -109,9 +110,8 @@ class Calendar:
 
     @classmethod
     def edit_user_events(cls, chat_id, id_of_event, edit_object, new_edit_object):
-        """Редактирование элемента события. Сначала обновляются все события,
-        а потом с проверяем принадлежность и уже изменяем его,
-        так же записываем изменения"""
+        """Редактирование элемента события. Проверка принадлежности к событию
+        и перезапись всех файлов"""
         if cls.events[id_of_event]['id'] == chat_id:
             cls.events[id_of_event][edit_object] = new_edit_object
             cls.adding_event_to_file(cls.events, mode='w')
