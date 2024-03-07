@@ -22,7 +22,10 @@ class Calendar:
             В случае неправильного написания, словарь не найдется в списке
             и отправится сообщение о его не существовании."""
         user_event = {}
-        event_id = int(event.split()[-1].strip('()'))  # получение id из сообщения пользователя
+        try:
+            event_id = int(event.split()[-1].strip('()'))  # получение id из сообщения пользователя
+        except ValueError:
+            return None
         for dict_event in cls.return_user_events(chat_id):  # итерация всех событий владельца
             if list(dict_event.keys())[0] == event_id:
                 user_event = dict_event  # добавление выбранного события в словарь

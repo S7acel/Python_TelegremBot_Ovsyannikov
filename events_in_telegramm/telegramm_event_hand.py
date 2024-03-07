@@ -51,7 +51,7 @@ def cancel(update, _context):
 def ask_event_name(update, _context):
     """Спрашивание названия события"""
     update.message.reply_text(
-        f"{update.message.from_user.username}, Напиши название события"
+        f"{update.message.from_user.first_name}, Напиши название события"
     )
     return DETAILS
 
