@@ -1,5 +1,7 @@
 """Для хранения файлов - я использовал json."""
 import json
+import psycopg2
+from config import HOST, USER, PASSWORD, DB_NAME, PORT
 
 
 class InstanceCreationNotAllowedError(Exception):
@@ -9,12 +11,50 @@ class InstanceCreationNotAllowedError(Exception):
 class Calendar:
     """Этот класс - связка методов для хранения, чтения, изменения и удаления событий.
         Сами методы - не связаны с классом с точки зрения логики. Их можно достать из класса"""
-
+    connection = None
     events = {}
 
     def __new__(cls, *args, **kwargs):
         """Исключение для того чтобы не создавать экземпляры класса"""
         raise InstanceCreationNotAllowedError("Нельзя создать экземпляр этого класса")
+
+    @classmethod
+    def write_user_in_table(cls, chat_id, first_name, username):
+        query = """INSERT INTO users (id, first_name, username) VALUES (%s, %s, %s)"""
+        data = (chat_id, first_name, username)
+        try:
+            with cls.connection.cursor() as cursor:
+                cursor.execute(query, data)
+                print('[INFO] Data was successfully inserted')
+                return 'Информация была успешно добавлена в базу данных!'
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+
+    @classmethod
+    def create_connection_with_database(cls):
+        try:
+            cls.connection = psycopg2.connect(
+                host=HOST,
+                user=USER,
+                password=PASSWORD,
+                database=DB_NAME,
+                port=PORT
+            )
+            cls.connection.autocommit = True
+            print(f'[INFO] connection was created! ({cls.connection.closed})')
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+
+    @classmethod
+    def close_connection_with_database(cls):
+        try:
+            if cls.connection:
+                cls.connection.close()
+                print(f'[INFO] PostgreSQL connection closed ({cls.connection.closed})')
+
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
 
     @classmethod
     def check_exist_of_event(cls, event, chat_id):
@@ -123,3 +163,5 @@ class Calendar:
 
 
 Calendar.update_all_events()
+Calendar.create_connection_with_database()
+

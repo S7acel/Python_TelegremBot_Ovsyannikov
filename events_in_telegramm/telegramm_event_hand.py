@@ -23,8 +23,12 @@ from calendar_class import Calendar
 Сам ключ - обозначает то, на какую функцию он перенаправляется
 """
 
-
-
+def table_adding(update, context):
+    """Запись информации о пользователе в базу"""
+    result = Calendar.write_user_in_table(update.message.chat_id,
+                                 update.message.from_user.first_name,
+                                 update.message.from_user.username)
+    update.message.reply_text(result)
 def start(update, context):
     """Приетственный текст, весь функционал"""
     (update.message.reply_text("""
@@ -275,6 +279,7 @@ def main():
     dispatcher = updater.dispatcher
     dispatcher.add_handler(conversation_handler)
     dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("data", table_adding))
     updater.start_polling()
 
 

@@ -4,3 +4,4 @@ events_in_telegramm/secrets.py
 /.idea/
 events_in_telegramm/events.json
 debugging.py
+config.py
