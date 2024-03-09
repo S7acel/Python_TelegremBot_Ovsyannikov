@@ -20,16 +20,27 @@ class Calendar:
 
     @classmethod
     def write_user_in_table(cls, chat_id, first_name, username):
+        """Этот метод записывает информацию о пользователе в таблицу users"""
+        query_for_check = """SELECT EXISTS(SELECT 1 FROM users WHERE id = %s)"""
+        id_data = (chat_id,)
         query = """INSERT INTO users (id, first_name, username) VALUES (%s, %s, %s)"""
         data = (chat_id, first_name, username)
         try:
+            Calendar.create_connection_with_database()
             with cls.connection.cursor() as cursor:
-                cursor.execute(query, data)
-                print('[INFO] Data was successfully inserted')
-                return 'Информация была успешно добавлена в базу данных!'
+                cursor.execute(query_for_check, id_data)
+                result = cursor.fetchone()[0]
+                print(f"[INFO] user's id was successfully checked \n Result: {result}")
+                if not result:
+                    cursor.execute(query, data)
+                    print('[INFO] Data was successfully inserted')
+                    return 'Информация была успешно добавлена в базу данных!'
+                return 'Информация уже есть в таблице!'
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
             return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+        finally:
+            Calendar.close_connection_with_database()
 
     @classmethod
     def create_connection_with_database(cls):
@@ -86,35 +97,60 @@ class Calendar:
             print(f'Файл "events.jsonl"- не существует {err}')
 
     @classmethod
-    def create_and_add_event_to_file(cls, event_name, details, event_date, event_time, chat_id):
+    def check_existance_of_user(cls):
+        ...
+
+    @classmethod
+    def add_event_to_database(cls, event_name, details, event_date, event_time, chat_id):
         """В этом методе - событие добавляется в словарь и в json файл,
-        НО, в отличие от create_event, без повторной перезаписи файлов"""
+        НО, в отличие от create_event, без повторной перезаписи файлов.
+        Соединение изначально происходит в функции check_missing_id"""
         event_id = Calendar.check_missing_id()
+        query_for_event_table = """INSERT INTO events (event_id, event_name, event_details, event_date, event_time)
+        VALUES (%s, %s, %s, %s, %s)"""
+        data_for_event_table = (event_id, event_name, details, event_date, event_time)
+        query_for_user_event = """INSERT INTO user_event (event_id, user_id)
+        VALUES (%s, %s)"""
+        data_for_user_event = (event_id, chat_id)
 
-        event = {
-            'name': event_name,
-            'details': details,
-            'date': event_date,
-            'time': event_time,
-            'id': chat_id
-        }
+        try:
+            with cls.connection.cursor() as cursor:
+                """Добавление в таблицу events"""
+                cursor.execute(query_for_event_table, data_for_event_table)
+                print('[INFO] Event was successfully inserted')
 
-        cls.events[event_id] = event
-        dict_event = {event_id: event}
-        cls.adding_event_to_file(dict_event)
-        return event_id
+
+                """Добавление в таблицу user_event"""
+                cursor.execute(query_for_user_event, data_for_user_event)
+                print('[INFO] User_event was successfully inserted')
+                return event_id
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+        finally:
+            Calendar.close_connection_with_database()
 
     @classmethod
     def check_missing_id(cls):
-        """Этот метод - проверяет недостающие Id из списка. Добавляет их по порядку,
+        """Этот метод - проверяет недостающие Id из базы. Добавляет их по порядку,
                             даже если какое-то событие удалили"""
-        if cls.events:
-            list_of_keys = list(cls.events.keys())
-            expected_keys = list(range(1, max(list_of_keys) + 1))
-            missing_keys = list(set(expected_keys) - set(list_of_keys))
+
+        try:
+            Calendar.create_connection_with_database()
+            with cls.connection.cursor() as cursor:
+                cursor.execute("""SELECT event_id from events""")
+                print('[INFO] ids was successfully received')
+                id_of_events = [id[0] for id in cursor.fetchall()]
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+
+        if id_of_events:
+            expected_keys = list(range(1, max(id_of_events) + 1))
+            missing_keys = list(set(expected_keys) - set(id_of_events))
             if missing_keys:
                 return missing_keys[0]
-            return len(cls.events) + 1
+            return len(id_of_events) + 1
         return 1
 
     @classmethod
@@ -163,5 +199,3 @@ class Calendar:
 
 
 Calendar.update_all_events()
-Calendar.create_connection_with_database()
-

@@ -5,3 +5,4 @@ events_in_telegramm/secrets.py
 events_in_telegramm/events.json
 debugging.py
 config.py
+check_new_functions.py

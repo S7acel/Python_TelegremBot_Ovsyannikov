@@ -28,7 +28,6 @@ def table_adding(update, context):
     result = Calendar.write_user_in_table(update.message.chat_id,
                                  update.message.from_user.first_name,
                                  update.message.from_user.username)
-    update.message.reply_text(result)
 def start(update, context):
     """Приетственный текст, весь функционал"""
     (update.message.reply_text("""
@@ -87,10 +86,11 @@ def create_event_handler(update, context):
     """После спрашивания всей необходимой информации,
     используется метод для создания события в классе Calendar.
     Информация записывается в файл с помощью метода create_and_add_event_to_file"""
-    event_id = Calendar.create_and_add_event_to_file(context.chat_data["event_name"],
-                                                     context.chat_data["details"],
-                                                     context.chat_data["date"], update.message.text,
-                                                     update.message.chat_id)
+    table_adding(update, context)
+    event_id = Calendar.add_event_to_database(context.chat_data["event_name"],
+                                              context.chat_data["details"],
+                                              context.chat_data["date"], update.message.text,
+                                              update.message.chat_id)
     context.bot.send_message(
         chat_id=update.message.chat_id,
         text=f"Событие {context.chat_data['event_name']} создано с номером {event_id}.",
