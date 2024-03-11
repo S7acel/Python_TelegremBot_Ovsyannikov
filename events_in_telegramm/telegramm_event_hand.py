@@ -54,7 +54,7 @@ def cancel(update, _context):
 def ask_event_name(update, _context):
     """Спрашивание названия события"""
     update.message.reply_text(
-        f"{update.message.from_user.first_name}, Напиши название события"
+        f"{update.message.from_user.first_name}, напиши название события"
     )
     return DETAILS
 
@@ -87,13 +87,13 @@ def create_event_handler(update, context):
     используется метод для создания события в классе Calendar.
     Информация записывается в файл с помощью метода create_and_add_event_to_file"""
     table_adding(update, context)
-    event_id = Calendar.add_event_to_database(context.chat_data["event_name"],
+    result = Calendar.add_event_to_database(context.chat_data["event_name"],
                                               context.chat_data["details"],
                                               context.chat_data["date"], update.message.text,
                                               update.message.chat_id)
     context.bot.send_message(
         chat_id=update.message.chat_id,
-        text=f"Событие {context.chat_data['event_name']} создано с номером {event_id}.",
+        text=result,
 
     )
     return ConversationHandler.END

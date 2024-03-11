@@ -123,10 +123,10 @@ class Calendar:
                 """Добавление в таблицу user_event"""
                 cursor.execute(query_for_user_event, data_for_user_event)
                 print('[INFO] User_event was successfully inserted')
-                return event_id
+                return f"Событие '{event_name}' успешно создано и имеет id {event_id}"
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
-            return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+            return f'Введены неправильные значения!'
         finally:
             Calendar.close_connection_with_database()
 
@@ -172,10 +172,34 @@ class Calendar:
         """Возвращает список всех событий пользователя (включая id и сами события)
         События находятся за счет chat_id пользователя"""
         user_events = []
-        for event_id, event_data in cls.events.items():
-            if event_data["id"] == chat_id:
-                user_events.append({event_id: event_data})
-        return user_events
+        query = """
+        select 
+            e.event_id, 
+            e.event_name, 
+            e.event_details,
+            e.event_date, 
+            e.event_time
+        from user_event us
+        inner join events e 
+        on e.event_id = us.event_id 
+        where user_id = %s
+        """
+        data = (chat_id,)
+        try:
+            Calendar.create_connection_with_database()
+            with cls.connection.cursor() as cursor:
+                cursor.execute(query, data)
+                result = cursor.fetchall()
+                print('[INFO] events was successfully received')
+                for el in result:
+                    event_data = {"name": el[1], "details": el[2], "date": el[3], "time": el[4], "id": chat_id}
+                    user_events.append({el[0]: event_data})
+                return user_events
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
+        finally:
+            Calendar.close_connection_with_database()
 
     @classmethod
     def delete_user_events(cls, chat_id, id_of_event):
