@@ -37,7 +37,7 @@ class Calendar:
                     return 'Информация была успешно добавлена в базу данных!'
                 return 'Информация уже есть в таблице!'
         except Exception as _err:
-            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            print('[INFO] Error while working with PostgreSQL', _err)
             return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
         finally:
             Calendar.close_connection_with_database()
@@ -118,8 +118,6 @@ class Calendar:
                 """Добавление в таблицу events"""
                 cursor.execute(query_for_event_table, data_for_event_table)
                 print('[INFO] Event was successfully inserted')
-
-
                 """Добавление в таблицу user_event"""
                 cursor.execute(query_for_user_event, data_for_user_event)
                 print('[INFO] User_event was successfully inserted')
@@ -190,7 +188,7 @@ class Calendar:
             with cls.connection.cursor() as cursor:
                 cursor.execute(query, data)
                 result = cursor.fetchall()
-                print('[INFO] events was successfully received')
+                print('[INFO] events was successfully received!')
                 for el in result:
                     event_data = {"name": el[1], "details": el[2], "date": el[3], "time": el[4], "id": chat_id}
                     user_events.append({el[0]: event_data})
@@ -203,23 +201,70 @@ class Calendar:
 
     @classmethod
     def delete_user_events(cls, chat_id, id_of_event):
-        """Удаляет элемент словаря, проверка принадлежности события происходит
-         за счет сравнения chat id"""
-        if cls.events[id_of_event]['id'] == chat_id:
-            del cls.events[id_of_event]
-            cls.adding_event_to_file(cls.events, mode='w')
-            return f'Событие под номером {id_of_event} - удалено успешно!'
-        return "Произошла ошибка. Возможно, такого события - не существует"
+        """Удаляет из базы данных коннектор и событие. Изначально запросы
+        с внешними ключами, а потом уже само событие"""
+
+        query_for_user_event = """
+        delete from user_event 
+        where user_id = %s and event_id = %s
+        """
+        data_for_user_event = (chat_id, id_of_event)
+        query_for_event_table = """
+        delete from events e
+        where e.event_id = %s
+        """
+        data_for_event_table = (id_of_event,)
+
+        try:
+            Calendar.create_connection_with_database()
+            with cls.connection.cursor() as cursor:
+                """Удаление связи и пользователя из таблицы user_events"""
+                cursor.execute(query_for_user_event, data_for_user_event)
+                print('[INFO] User_Event was successfully deleted!')
+                """Добавление в таблицу user_event"""
+                cursor.execute(query_for_event_table, data_for_event_table)
+                print('[INFO] event was successfully deleted!')
+                return f"Событие под номером'{id_of_event}' успешно Удалено!"
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', _err)
+            return f'Введены неправильные значения!'
+        finally:
+            Calendar.close_connection_with_database()
+
+        # if cls.events[id_of_event]['id'] == chat_id:
+        # del cls.events[id_of_event]
+        # cls.adding_event_to_file(cls.events, mode='w')
+        # return f'Событие под номером {id_of_event} - удалено успешно!'
+        # return "Произошла ошибка. Возможно, такого события - не существует"
 
     @classmethod
     def edit_user_events(cls, chat_id, id_of_event, edit_object, new_edit_object):
         """Редактирование элемента события. Проверка принадлежности к событию
         и перезапись всех файлов"""
-        if cls.events[id_of_event]['id'] == chat_id:
-            cls.events[id_of_event][edit_object] = new_edit_object
-            cls.adding_event_to_file(cls.events, mode='w')
-            return f'Событие под номером {id_of_event} - изменено успешно!'
-        return "Произошла ошибка. Возможно, такого события - не существует"
+        query = f"""
+        update events  
+        set {edit_object} = %s
+        where event_id in (
+        select e.event_id 
+        from events e 
+        join user_event ue  
+        on e.event_id = ue.event_id
+        where ue.user_id = %s and ue.event_id = %s
+        )
+        """
+        data = (new_edit_object, chat_id, id_of_event)
+
+        try:
+            Calendar.create_connection_with_database()
+            with cls.connection.cursor() as cursor:
+                cursor.execute(query, data)
+                print('[INFO] database was successfully changed!')
+                return f'Событие под номером {id_of_event} - изменено успешно!'
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', '\n', _err)
+            return 'Произошла ошибка при изменении события. Возможно, введен неправильный формат'
+        finally:
+            Calendar.close_connection_with_database()
 
 
 Calendar.update_all_events()

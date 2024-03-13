@@ -105,8 +105,9 @@ def choose_event(update, context):
     После этого мы создаем кнопки события в формате
     'ИМЯ (ID)'"""
     context.chat_data["events_function"] = update.message.text
+    context.chat_data["all_events"] = Calendar.return_user_events(update.message.chat_id)
     if Calendar.return_user_events(update.message.chat_id):  # проверка на наличие событий
-        context.chat_data["all_events"] = Calendar.return_user_events(update.message.chat_id)
+
         buttons = [[]]
         for event in context.chat_data['all_events']:
             name = event[list(event.keys())[0]]['name']
@@ -152,7 +153,7 @@ id: {event_id}
 Детали: {event[event_id]['details']}
 Дата: {event[event_id]['date']}
 Время: {event[event_id]['time']}
-""")
+""", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
 
@@ -200,13 +201,13 @@ def ask_for_write_new_text(update, context):
     update.message.reply_text('Напишите новый текст', reply_markup=ReplyKeyboardRemove())
     match update.message.text:
         case 'имя':
-            context.chat_data['edit_object'] = 'name'
+            context.chat_data['edit_object'] = 'event_name'
         case 'детали':
-            context.chat_data['edit_object'] = 'details'
+            context.chat_data['edit_object'] = 'event_details'
         case 'дата':
-            context.chat_data['edit_object'] = 'date'
+            context.chat_data['edit_object'] = 'event_date'
         case 'время':
-            context.chat_data['edit_object'] = 'time'
+            context.chat_data['edit_object'] = 'event_time'
         case _:
             update.message.reply_text('Такого события - нет')
             return ConversationHandler.END
