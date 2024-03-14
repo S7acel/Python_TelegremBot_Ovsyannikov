@@ -20,7 +20,7 @@ class Calendar:
 
     @classmethod
     def write_user_in_table(cls, chat_id, first_name, username):
-        """Этот метод записывает информацию о пользователе в таблицу users"""
+        """Этот метод записывает информацию о пользователе в таблицу users, делает проверку"""
         query_for_check = """SELECT EXISTS(SELECT 1 FROM users WHERE id = %s)"""
         id_data = (chat_id,)
         query = """INSERT INTO users (id, first_name, username) VALUES (%s, %s, %s)"""
@@ -44,6 +44,8 @@ class Calendar:
 
     @classmethod
     def create_connection_with_database(cls):
+        """Этот метод создает соединение с базой данных. Далее, при вызове курсора,
+        с базой можно взаимодействовать"""
         try:
             cls.connection = psycopg2.connect(
                 host=HOST,
@@ -59,6 +61,8 @@ class Calendar:
 
     @classmethod
     def close_connection_with_database(cls):
+        """Этот метод закрывает соединение с базой данных.
+        После действий в базе данных, он закрывается"""
         try:
             if cls.connection:
                 cls.connection.close()
@@ -84,29 +88,13 @@ class Calendar:
         return user_event
 
     @classmethod
-    def adding_event_to_file(cls, dict_event, mode='a'):
-        """Этот метод - добавляет в файл 'events.jsonl' словарь-событие"""
-
-        try:
-            with open('events.jsonl', mode, encoding='utf-8') as file:
-                for event_id, event_data in dict_event.items():
-                    event = {event_id: event_data}
-                    json.dump(event, file)
-                    file.write('\n')
-        except FileNotFoundError as err:
-            print(f'Файл "events.jsonl"- не существует {err}')
-
-    @classmethod
-    def check_existance_of_user(cls):
-        ...
-
-    @classmethod
     def add_event_to_database(cls, event_name, details, event_date, event_time, chat_id):
         """В этом методе - событие добавляется в словарь и в json файл,
         НО, в отличие от create_event, без повторной перезаписи файлов.
         Соединение изначально происходит в функции check_missing_id"""
         event_id = Calendar.check_missing_id()
-        query_for_event_table = """INSERT INTO events (event_id, event_name, event_details, event_date, event_time)
+        query_for_event_table = """INSERT INTO
+        events (event_id, event_name, event_details, event_date, event_time)
         VALUES (%s, %s, %s, %s, %s)"""
         data_for_event_table = (event_id, event_name, details, event_date, event_time)
         query_for_user_event = """INSERT INTO user_event (event_id, user_id)
@@ -115,16 +103,16 @@ class Calendar:
 
         try:
             with cls.connection.cursor() as cursor:
-                """Добавление в таблицу events"""
+                # Добавление в таблицу events
                 cursor.execute(query_for_event_table, data_for_event_table)
                 print('[INFO] Event was successfully inserted')
-                """Добавление в таблицу user_event"""
+                # Добавление в таблицу user_event
                 cursor.execute(query_for_user_event, data_for_user_event)
                 print('[INFO] User_event was successfully inserted')
                 return f"Событие '{event_name}' успешно создано и имеет id {event_id}"
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
-            return f'Введены неправильные значения!'
+            return 'Введены неправильные значения!'
         finally:
             Calendar.close_connection_with_database()
 
@@ -152,20 +140,6 @@ class Calendar:
         return 1
 
     @classmethod
-    def update_all_events(cls):
-        """Обновляет список событий из файла events.jsonl, вытягивает их.
-        Построчно итерирует события из класса и добавляет в словарь events"""
-        try:
-            with open('events.jsonl', 'r', encoding='utf-8') as file:
-                for iter_event in file:
-                    whole_event = json.loads(iter_event)
-                    event_values = list(whole_event.values())[0]
-                    event_id = int(list(whole_event.keys())[0])
-                    cls.events[event_id] = event_values
-        except FileNotFoundError as err:
-            print(f'file was not found {err}')
-
-    @classmethod
     def return_user_events(cls, chat_id):
         """Возвращает список всех событий пользователя (включая id и сами события)
         События находятся за счет chat_id пользователя"""
@@ -190,7 +164,11 @@ class Calendar:
                 result = cursor.fetchall()
                 print('[INFO] events was successfully received!')
                 for el in result:
-                    event_data = {"name": el[1], "details": el[2], "date": el[3], "time": el[4], "id": chat_id}
+                    event_data = {"name": el[1],
+                                  "details": el[2],
+                                  "date": el[3],
+                                  "time": el[4],
+                                  "id": chat_id}
                     user_events.append({el[0]: event_data})
                 return user_events
         except Exception as _err:
@@ -202,7 +180,9 @@ class Calendar:
     @classmethod
     def delete_user_events(cls, chat_id, id_of_event):
         """Удаляет из базы данных коннектор и событие. Изначально запросы
-        с внешними ключами, а потом уже само событие"""
+        с внешними ключами, а потом уже само событие.
+        Сначала происходит удаление связи и пользователя из таблицы user_events
+        """
 
         query_for_user_event = """
         delete from user_event 
@@ -218,24 +198,18 @@ class Calendar:
         try:
             Calendar.create_connection_with_database()
             with cls.connection.cursor() as cursor:
-                """Удаление связи и пользователя из таблицы user_events"""
+                # Удаление связи и пользователя из таблицы user_events
                 cursor.execute(query_for_user_event, data_for_user_event)
                 print('[INFO] User_Event was successfully deleted!')
-                """Добавление в таблицу user_event"""
+                # Добавление в таблицу user_event
                 cursor.execute(query_for_event_table, data_for_event_table)
                 print('[INFO] event was successfully deleted!')
                 return f"Событие под номером'{id_of_event}' успешно Удалено!"
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', _err)
-            return f'Введены неправильные значения!'
+            return 'Введены неправильные значения!'
         finally:
             Calendar.close_connection_with_database()
-
-        # if cls.events[id_of_event]['id'] == chat_id:
-        # del cls.events[id_of_event]
-        # cls.adding_event_to_file(cls.events, mode='w')
-        # return f'Событие под номером {id_of_event} - удалено успешно!'
-        # return "Произошла ошибка. Возможно, такого события - не существует"
 
     @classmethod
     def edit_user_events(cls, chat_id, id_of_event, edit_object, new_edit_object):
@@ -267,4 +241,3 @@ class Calendar:
             Calendar.close_connection_with_database()
 
 
-Calendar.update_all_events()

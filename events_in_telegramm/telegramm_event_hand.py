@@ -23,11 +23,7 @@ from calendar_class import Calendar
 Сам ключ - обозначает то, на какую функцию он перенаправляется
 """
 
-def table_adding(update, context):
-    """Запись информации о пользователе в базу"""
-    result = Calendar.write_user_in_table(update.message.chat_id,
-                                 update.message.from_user.first_name,
-                                 update.message.from_user.username)
+
 def start(update, context):
     """Приетственный текст, весь функционал"""
     (update.message.reply_text("""
@@ -44,6 +40,7 @@ _Надеюсь, я смогу помочь тебе в управлении т�
 
 [Если есть вопросы или наткнулись на ошибку](tg://user?id=954061592)
 """, parse_mode='markdown'))
+
 
 def cancel(update, _context):
     """При использовании этой команды, пользователь отменяет диалог с командами"""
@@ -86,11 +83,13 @@ def create_event_handler(update, context):
     """После спрашивания всей необходимой информации,
     используется метод для создания события в классе Calendar.
     Информация записывается в файл с помощью метода create_and_add_event_to_file"""
-    table_adding(update, context)
+    Calendar.write_user_in_table(update.message.chat_id,
+                                 update.message.from_user.first_name,
+                                 update.message.from_user.username)
     result = Calendar.add_event_to_database(context.chat_data["event_name"],
-                                              context.chat_data["details"],
-                                              context.chat_data["date"], update.message.text,
-                                              update.message.chat_id)
+                                            context.chat_data["details"],
+                                            context.chat_data["date"], update.message.text,
+                                            update.message.chat_id)
     context.bot.send_message(
         chat_id=update.message.chat_id,
         text=result,
@@ -132,7 +131,6 @@ def chose_action_for_event(update, context):
     else:
         update.message.reply_text("Такого события не существует..")
         return conversation_handler.END
-
 
     match context.chat_data["events_function"].lower():
         case "/read":
@@ -232,6 +230,7 @@ def delete_all_events(update, context):
 """, parse_mode='Markdown')
     return CHOOSE_TO_DELETE
 
+
 def check_chose_to_delete(update, context):
     """В зависимости от сообщения - удаление файлов
     (С помощью итераци событий через delete_user_events)"""
@@ -249,6 +248,7 @@ def check_chose_to_delete(update, context):
         return ConversationHandler.END
     update.message.reply_text("Действие отменено!")
     return ConversationHandler.END
+
 
 conversation_handler = ConversationHandler(
     entry_points=[
@@ -280,7 +280,6 @@ def main():
     dispatcher = updater.dispatcher
     dispatcher.add_handler(conversation_handler)
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("data", table_adding))
     updater.start_polling()
 
 
