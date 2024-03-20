@@ -129,7 +129,7 @@ class Calendar:
         return 1
 
     @classmethod
-    def return_user_events(cls, chat_id):
+    def return_user_events(cls, chat_id, event_id=None):
         """Возвращает список всех событий пользователя (включая id и сами события)
         События находятся за счет chat_id пользователя"""
         user_events = []
@@ -145,7 +145,11 @@ class Calendar:
         on e.event_id = us.event_id 
         where user_id = %s
         """
-        data = (chat_id,)
+        if event_id is not None:
+            query += " and e.event_id = %s"
+            data = (chat_id, event_id)
+        else:
+            data = (chat_id,)
         try:
             Calendar.create_connection_with_database()
             with cls.connection.cursor() as cursor:

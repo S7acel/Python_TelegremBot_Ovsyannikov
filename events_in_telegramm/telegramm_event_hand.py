@@ -143,12 +143,25 @@ id: {event_id}
     return ConversationHandler.END
 
 def check_belong(update, context):
-
     query = update.callback_query
-
     query.answer()
+    chat_id = update.callback_query.message.chat_id
+    event_id = query.data
 
-    query.edit_message_text(f'выбранное событие: {query.data}')
+    match context.chat_data["events_function"].lower():
+        case "/read":
+
+
+            event = Calendar.return_user_events(chat_id,
+                                        event_id)[0]
+            query.edit_message_text(f"id события: {event[0]}\nимя события: {event[1]}\nдетали события: {event[2]}\n"
+                                    f"дата: {event[3]}\nвремя события {event[4]}")
+        case "/edit":
+            return edit_event_handler(update, context)
+        case "/delete":
+            result = Calendar.delete_user_events(chat_id, event_id)
+            query.edit_message_text(result)
+    return ConversationHandler.END
     # if Calendar.check_belong_event_to_user(update.callback_query)
 
 
