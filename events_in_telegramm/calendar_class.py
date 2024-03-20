@@ -1,5 +1,4 @@
 """Для хранения файлов - я использовал json."""
-import json
 import psycopg2
 from config import HOST, USER, PASSWORD, DB_NAME, PORT
 
@@ -12,7 +11,6 @@ class Calendar:
     """Этот класс - связка методов для хранения, чтения, изменения и удаления событий.
         Сами методы - не связаны с классом с точки зрения логики. Их можно достать из класса"""
     connection = None
-    events = {}
 
     def __new__(cls, *args, **kwargs):
         """Исключение для того чтобы не создавать экземпляры класса"""
@@ -72,20 +70,11 @@ class Calendar:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
 
     @classmethod
-    def check_exist_of_event(cls, event, chat_id):
-        """В этой функции проверяется существование данного события.
+    def check_belong_event_to_user(cls, event, chat_id): # TODO додедать проверку
+        """В этой функции проверяется принадлежность события к пользователю.
             В случае неправильного написания, словарь не найдется в списке
             и отправится сообщение о его не существовании."""
-        user_event = {}
-        try:
-            event_id = int(event.split()[-1].strip('()'))  # получение id из сообщения пользователя
-        except ValueError:
-            return None
-        for dict_event in cls.return_user_events(chat_id):  # итерация всех событий владельца
-            if list(dict_event.keys())[0] == event_id:
-                user_event = dict_event  # добавление выбранного события в словарь
-                break
-        return user_event
+        return True
 
     @classmethod
     def add_event_to_database(cls, event_name, details, event_date, event_time, chat_id):
@@ -163,14 +152,7 @@ class Calendar:
                 cursor.execute(query, data)
                 result = cursor.fetchall()
                 print('[INFO] events was successfully received!')
-                for el in result:
-                    event_data = {"name": el[1],
-                                  "details": el[2],
-                                  "date": el[3],
-                                  "time": el[4],
-                                  "id": chat_id}
-                    user_events.append({el[0]: event_data})
-                return user_events
+                return result
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
             return 'Произошла ошибка при работе с PostgreSQL: ' + str(_err)
