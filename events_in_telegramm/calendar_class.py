@@ -70,7 +70,7 @@ class Calendar:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
 
     @classmethod
-    def check_belong_event_to_user(cls, event_id, chat_id):
+    def check_belong_event_to_user(cls, event_id, chat_id):  # TODO переделать под проверку на наличие событий в целом
         """В этой функции проверяется принадлежность события к пользователю.
             В случае неправильного написания, словарь не найдется в списке
             и отправится сообщение о его не существовании."""
@@ -143,7 +143,9 @@ class Calendar:
     @classmethod
     def return_user_events(cls, chat_id, event_id=None):
         """Возвращает список всех событий пользователя (включая id и сами события)
-        События находятся за счет chat_id пользователя"""
+        События находятся за счет chat_id пользователя. Если в переменную
+        добавить id события, то он будет возвращать его
+        """
         user_events = []
         query = """
         select 
