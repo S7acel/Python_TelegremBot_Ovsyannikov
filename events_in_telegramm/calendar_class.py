@@ -1,10 +1,10 @@
-"""Для хранения файлов - я использовал json."""
+"""Для хранения файлов - я использовал базу данных."""
 import psycopg2
 from config import HOST, USER, PASSWORD, DB_NAME, PORT
 
 
 class InstanceCreationNotAllowedError(Exception):
-    """Raised when an instance creation is not allowed"""
+    """Исключение, если создание экземпляра не разрешено"""
 
 
 class Calendar:
@@ -70,16 +70,28 @@ class Calendar:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
 
     @classmethod
-    def check_belong_event_to_user(cls, event, chat_id): # TODO додедать проверку
+    def check_belong_event_to_user(cls, event_id, chat_id):
         """В этой функции проверяется принадлежность события к пользователю.
             В случае неправильного написания, словарь не найдется в списке
             и отправится сообщение о его не существовании."""
-        return True
+        query = """SELECT EXISTS(SELECT 1 FROM user_event WHERE event_id = %s and user_id = %s)"""
+        data = (event_id, chat_id)
+        try:
+            Calendar.create_connection_with_database()
+            with cls.connection.cursor() as cursor:
+                cursor.execute(query, data)
+                result = cursor.fetchone()[0]
+                print(f"[INFO] User's belong to event successfully checked!\n Result: {result}")
+                return result
+        except Exception as _err:
+            print('[INFO] Error while working with PostgreSQL', _err)
+            return 'Введены неправильные значения!'
+        finally:
+            Calendar.close_connection_with_database()
 
     @classmethod
     def add_event_to_database(cls, event_name, details, event_date, event_time, chat_id):
-        """В этом методе - событие добавляется в словарь и в json файл,
-        НО, в отличие от create_event, без повторной перезаписи файлов.
+        """В этом методе - добавляется событие в базу данных.
         Соединение изначально происходит в функции check_missing_id"""
         event_id = Calendar.check_missing_id()
         query_for_event_table = """INSERT INTO
@@ -199,8 +211,7 @@ class Calendar:
 
     @classmethod
     def edit_user_events(cls, chat_id, id_of_event, edit_object, new_edit_object):
-        """Редактирование элемента события. Проверка принадлежности к событию
-        и перезапись всех файлов"""
+        """Редактирование элемента события. """
         query = f"""
         update events  
         set {edit_object} = %s
