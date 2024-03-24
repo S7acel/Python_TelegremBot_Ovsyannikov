@@ -70,12 +70,18 @@ class Calendar:
             print('[INFO] Error while working with PostgreSQL', '\n', _err)
 
     @classmethod
-    def check_belong_event_to_user(cls, event_id, chat_id):  # TODO переделать под проверку на наличие событий в целом
-        """В этой функции проверяется принадлежность события к пользователю.
-            В случае неправильного написания, словарь не найдется в списке
-            и отправится сообщение о его не существовании."""
-        query = """SELECT EXISTS(SELECT 1 FROM user_event WHERE event_id = %s and user_id = %s)"""
-        data = (event_id, chat_id)
+    def check_exists_of_objects(cls, chat_id,
+                                event_id=None):
+        """В этой функции проверяется принадлежность события к пользователю. В случае принадлежности,
+        возвращается true. Так же, если передать в качестве аргумента только id чата, то будет проверка на то,
+         есть ли у него события в целом"""
+        query = """SELECT EXISTS(SELECT 1 FROM user_event WHERE user_id = %s """
+        if event_id is not None:
+            query += 'and event_id = %s)'
+            data = (chat_id, event_id)
+        else:
+            query += ')'
+            data = (chat_id,)
         try:
             Calendar.create_connection_with_database()
             with cls.connection.cursor() as cursor:
@@ -158,9 +164,11 @@ class Calendar:
         inner join events e 
         on e.event_id = us.event_id 
         where user_id = %s
+        order by e.event_id
         """
         if event_id is not None:
-            query += " and e.event_id = %s"
+            query = query[:-28]  # удаляем сортировку
+            query += " and e.event_id = %s\n order by e.event_id"  # добавляем сортировку в конец строки
             data = (chat_id, event_id)
         else:
             data = (chat_id,)
@@ -238,5 +246,3 @@ class Calendar:
             return 'Произошла ошибка при изменении события. Возможно, введен неправильный формат'
         finally:
             Calendar.close_connection_with_database()
-
-

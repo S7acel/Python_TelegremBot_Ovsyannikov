@@ -15,6 +15,7 @@ from telegram.ext import (
 )
 from calendar_class import Calendar
 from message_texts import *
+
 (NAME, DETAILS, DATE, TIME, READ_EVENT, CHOOSE_EVENT, EDIT_OBJECT,
  NEW_EDIT_OBJECT, ANSWER, REQUIRED_TEXT_FOR_CHANGE) = range(10)
 
@@ -33,14 +34,14 @@ def start(update, context):
 
 def cancel(update, _context):
     """При использовании этой команды, пользователь отменяет диалог с командами"""
-    update.message.reply_text("Создание события отменено")
+    update.message.reply_text(CANCELLING)
     return ConversationHandler.END
 
 
 def ask_event_name(update, _context):
     """Спрашивание названия события"""
     update.message.reply_text(
-        f"{update.message.from_user.first_name}, напиши название события"
+        f'{update.message.from_user.first_name} {ASK_FOR_EVENT}'
     )
     return NAME
 
@@ -57,14 +58,14 @@ def ask_event_details(update, context):
 def ask_event_date(update, context):
     """Спрашивание даты события"""
     context.chat_data["details"] = update.message.text
-    update.message.reply_text("Напиши дату в формате дд/мм/гг")
+    update.message.reply_text(ASK_DATE)
     return DATE
 
 
 def ask_event_time(update, context):
     """Спрашивание времени события"""
     context.chat_data["date"] = update.message.text
-    update.message.reply_text("Теперь напиши время события в формате XX:XX")
+    update.message.reply_text(ASK_TIME)
     return TIME
 
 
@@ -89,15 +90,15 @@ def choose_event(update, context):
     После этого мы создаем кнопки события в формате
     'ИМЯ (ID)'"""
     context.chat_data["events_function"] = update.message.text
-    events = Calendar.return_user_events(update.message.chat_id)  # TODO поменять на check_belong_event_to_user
-    if events:  # проверка на наличие событий
+    if Calendar.check_exists_of_objects(update.message.chat_id):
+        events = Calendar.return_user_events(update.message.chat_id)
         keyboard = [[]]
         for event in events:  # Итерируемся по каждому событию - словарю в списке
             id_of_event = event[0]
             name = event[1]
             keyboard[0].append(InlineKeyboardButton(f"{name} ({id_of_event})",
                                                     callback_data=id_of_event))  # добавление кнопок
-        update.message.reply_text("Выберите событие:", reply_markup=InlineKeyboardMarkup(
+        update.message.reply_text(CHOSE_EVENT, reply_markup=InlineKeyboardMarkup(
             keyboard))
         return CHOOSE_EVENT
     update.message.reply_text("Событий - нет")
@@ -125,13 +126,12 @@ def do_action(update, context):
     context.user_data['event_id'] = query.data
 
     match context.chat_data["events_function"].lower():
-        case "/read":  # TODO сделать новую функцию, которая будет реализовывать чтение
+        case "/read":
             return read_event_handler(update, context)
         case "/edit":
             return ask_edit_object(update, context)
         case "/delete":
-            result = Calendar.delete_user_events(query.message.chat_id, context.user_data['event_id'])
-            query.edit_message_text(result)
+            return delete_event(update, context)
     return ConversationHandler.END
 
 
@@ -154,12 +154,12 @@ Id события: {event[0]}
     return ConversationHandler.END
 
 
-def delete_event_handler(update, context):
+def delete_event(update, context):
     """Удаление события за счет метода delete_user_events."""
-    event = context.chat_data['event']
-    event_id = list(event.keys())[0]
-    result = Calendar.delete_user_events(update.message.chat_id, event_id)
-    update.message.reply_text(f"{result}")
+    query = update.callback_query
+    query.answer()
+    result = Calendar.delete_user_events(query.message.chat_id, context.user_data['event_id'])
+    query.edit_message_text(f"{result}")
     return ConversationHandler.END
 
 
@@ -198,7 +198,7 @@ def edit_event(update, context):
     edit_user_events для редактирования события, так же с целью безопастности делается
      проверка на принадлежность к событию перед редактированием"""
     event_id = context.user_data['event_id']
-    if Calendar.check_belong_event_to_user(event_id, update.message.chat_id):
+    if Calendar.check_exists_of_objects(update.message.chat_id, event_id):
         result = Calendar.edit_user_events(update.message.chat_id, event_id,
                                            context.user_data['option'], update.message.text)
         update.message.reply_text(f'{result}')
@@ -230,8 +230,9 @@ def check_chose_to_delete(update, context):
             return ConversationHandler.END
         update.message.reply_text("Событий - нет")
         return ConversationHandler.END
-    update.message.reply_text("Действие отменено!")
-    return ConversationHandler.END
+    return cancel(update, context)
+
+
 
 conversation_handler = ConversationHandler(
     entry_points=[
@@ -252,16 +253,15 @@ conversation_handler = ConversationHandler(
     per_message=False
 )
 
-
 create_handler = ConversationHandler(
     entry_points=[
         CommandHandler("create", ask_event_name)
     ],
     states={
-            NAME: [MessageHandler(Filters.text & ~Filters.command, ask_event_details)],
-            DETAILS: [MessageHandler(Filters.text & ~Filters.command, ask_event_date)],
-            DATE: [MessageHandler(Filters.text & ~Filters.command, ask_event_time)],
-            TIME: [MessageHandler(Filters.text & ~Filters.command, create_event_handler)]
+        NAME: [MessageHandler(Filters.text & ~Filters.command, ask_event_details)],
+        DETAILS: [MessageHandler(Filters.text & ~Filters.command, ask_event_date)],
+        DATE: [MessageHandler(Filters.text & ~Filters.command, ask_event_time)],
+        TIME: [MessageHandler(Filters.text & ~Filters.command, create_event_handler)]
     },
     fallbacks=[CommandHandler("cancel", cancel)]
 )
