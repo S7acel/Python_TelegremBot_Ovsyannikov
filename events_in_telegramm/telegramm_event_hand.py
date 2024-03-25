@@ -14,7 +14,14 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 from calendar_class import Calendar
-from message_texts import *
+from message_texts import (
+    CANCELLING,
+    ASK_FOR_EVENT,
+    ASK_DATE,
+    ASK_TIME,
+    CHOSE_EVENT,
+    GREETINGS
+)
 
 (NAME, DETAILS, DATE, TIME, READ_EVENT, CHOOSE_EVENT, EDIT_OBJECT,
  NEW_EDIT_OBJECT, ANSWER, REQUIRED_TEXT_FOR_CHANGE) = range(10)
@@ -113,26 +120,26 @@ def read_event_handler(update, context):
     event_id = context.user_data['event_id']
     event = Calendar.return_user_events(chat_id,
                                         event_id)[0]
-    query.edit_message_text(f"id события: {event[0]}\nимя события: {event[1]}\nдетали события: {event[2]}\n"
+    query.edit_message_text(f"id события: {event[0]}\n"
+                            f"имя события: {event[1]}\nдетали события: {event[2]}\n"
                             f"дата: {event[3]}\nвремя события {event[4]}")
     return ConversationHandler.END
 
 
 def do_action(update, context):
     """В этой функции, в зависимости от команды,
-    выполняется действие в match_case"""
+    выполняется действие в match_case. С помощью метода .get
+    достаем из словаря 'functions_of_commands' нужную нам функцию, в зависимости от команды"""
     query = update.callback_query
     query.answer()
     context.user_data['event_id'] = query.data
-
-    match context.chat_data["events_function"].lower():
-        case "/read":
-            return read_event_handler(update, context)
-        case "/edit":
-            return ask_edit_object(update, context)
-        case "/delete":
-            return delete_event(update, context)
-    return ConversationHandler.END
+    functions_of_commands = {
+        "/read": read_event_handler,
+        "/edit": ask_edit_object,
+        "/delete": delete_event
+    }
+    execute_event = functions_of_commands.get(context.chat_data["events_function"].lower())
+    return execute_event(update, context)
 
 
 def display_events(update, context):

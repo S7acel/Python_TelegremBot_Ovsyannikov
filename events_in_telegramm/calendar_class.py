@@ -72,22 +72,26 @@ class Calendar:
     @classmethod
     def check_exists_of_objects(cls, chat_id,
                                 event_id=None):
-        """В этой функции проверяется принадлежность события к пользователю. В случае принадлежности,
-        возвращается true. Так же, если передать в качестве аргумента только id чата, то будет проверка на то,
-         есть ли у него события в целом"""
+        """В этой функции проверяется принадлежность события к пользователю.
+        Если в таблице есть связка события к пользователю, то возвращается True.
+         Так же, если передать в качестве аргумента только id чата, то будет проверка на то,
+         есть ли у него события в целом. Если у него их нет, то вернётся False."""
         query = """SELECT EXISTS(SELECT 1 FROM user_event WHERE user_id = %s """
         if event_id is not None:
             query += 'and event_id = %s)'
             data = (chat_id, event_id)
+            message = "[INFO] User's belong to event successfully checked! \n Result:"
         else:
             query += ')'
             data = (chat_id,)
+            message = "[INFO] User's existing successfully checked! \n Result:"
+
         try:
             Calendar.create_connection_with_database()
             with cls.connection.cursor() as cursor:
                 cursor.execute(query, data)
                 result = cursor.fetchone()[0]
-                print(f"[INFO] User's belong to event successfully checked!\n Result: {result}")
+                print(f"{message} {result}")
                 return result
         except Exception as _err:
             print('[INFO] Error while working with PostgreSQL', _err)
@@ -152,7 +156,6 @@ class Calendar:
         События находятся за счет chat_id пользователя. Если в переменную
         добавить id события, то он будет возвращать его
         """
-        user_events = []
         query = """
         select 
             e.event_id, 
@@ -168,7 +171,8 @@ class Calendar:
         """
         if event_id is not None:
             query = query[:-28]  # удаляем сортировку
-            query += " and e.event_id = %s\n order by e.event_id"  # добавляем сортировку в конец строки
+            query += (" and e.event_id = %s"
+                      " order by e.event_id")  # добавляем сортировку в конец строки
             data = (chat_id, event_id)
         else:
             data = (chat_id,)
@@ -189,7 +193,6 @@ class Calendar:
     def delete_user_events(cls, chat_id, id_of_event):
         """Удаляет из базы данных коннектор и событие. Изначально запросы
         с внешними ключами, а потом уже само событие.
-        Сначала происходит удаление связи и пользователя из таблицы user_events
         """
 
         query_for_user_event = """
@@ -221,7 +224,9 @@ class Calendar:
 
     @classmethod
     def edit_user_events(cls, chat_id, id_of_event, edit_object, new_edit_object):
-        """Редактирование элемента события. """
+        """Редактирование элемента события. За счет запроса, где мы изменяем
+        столбец запросом set.
+        """
         query = f"""
         update events  
         set {edit_object} = %s
